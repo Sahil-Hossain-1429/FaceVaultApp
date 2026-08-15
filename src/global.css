@@ -1,0 +1,94 @@
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/preflight.css" layer(base);
+@import "tailwindcss/utilities.css";
+ 
+@import "nativewind/theme";
+
+@theme {
+  /* ---------- 1. RAW PALETTE (private — do not use directly) ---------- */
+  --palette-navy-950: #010617;
+  --palette-navy-900: #0E172A;
+  --palette-navy-800: #1B293C;
+  --palette-navy-700: #22334A;
+  --palette-navy-600: #2F4157;
+  --palette-navy-500: #43556B;
+
+  --palette-blue-600: #192E61;
+  --palette-blue-500: #122453;
+  --palette-blue-400: #5FAEF7;
+  --palette-blue-300: #57ABFB;
+
+  --palette-white: #FFFFFF;
+  --palette-fog-100: #F3F6F9;
+  --palette-fog-200: #D4DDE7;
+  --palette-fog-400: #8698B4;
+  --palette-fog-500: #60748D;
+
+  --palette-green-900: #002E16;
+  --palette-green-600: #006633;
+  --palette-red-500: #CF1914;
+
+  /* ---------- 2. SEMANTIC TOKENS ---------- */
+
+  /* Backgrounds — screen-level surfaces */
+  --color-bg-main: var(--palette-navy-900);
+  --color-bg-sidebar: var(--palette-navy-800);
+  --color-bg-dark: var(--palette-navy-950);
+
+  /* Surfaces — cards, rows, inputs, sheets */
+  --color-surface-default: var(--palette-navy-800);
+  --color-surface-raised: var(--palette-navy-700);
+  --color-surface-selected: var(--palette-blue-600);
+  --color-surface-selected-light: var(--palette-blue-500);
+
+  /* Borders */
+  --color-border-default: var(--palette-navy-600);
+  --color-border-strong: var(--palette-navy-500);
+
+  /* Brand / interactive */
+  --color-primary: var(--palette-blue-400);
+  --color-primary-hover: var(--palette-blue-300);
+
+  /* Text */
+  --color-text-primary: var(--palette-fog-100);
+  --color-text-white: var(--palette-white);
+  --color-text-secondary: var(--palette-fog-200);
+  --color-text-muted: var(--palette-fog-400);
+  --color-text-disabled: var(--palette-fog-500);
+
+  /* Status */
+  --color-success: var(--palette-green-600);
+  --color-success-bg: var(--palette-green-900);
+  --color-danger: var(--palette-red-500);
+
+  /* ---------- TYPOGRAPHY ---------- */
+  --font-sans: "Inter", -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
+
+  /* Type scale — semantic sizes mapped to rem.
+     Use via text-{name}, e.g. text-heading-lg */
+  --text-display: 1.75rem;      /* 28px — onboarding headlines */
+  --text-heading-lg: 1.375rem;  /* 22px — screen titles */
+  --text-heading-md: 1.25rem;   /* 20px — section headers, dialog titles */
+  --text-heading-sm: 1.03125rem;/* 16.5px — card/dialog subheads */
+  --text-body: 0.90625rem;      /* 14.5px — default body/row text */
+  --text-body-sm: 0.8125rem;    /* 13px — secondary copy */
+  --text-caption: 0.75rem;      /* 12px — metadata, sub-labels */
+  --text-label: 0.71875rem;     /* 11.5px — section labels, uppercase eyebrow */
+  --text-micro: 0.65625rem;     /* 10.5px — tab bar labels */
+
+  /* ---------- SPACING ----------
+     Reuses Tailwind's default numeric scale (p-4, gap-2, etc).
+     Only add named tokens here for values that recur as a
+     *concept*, not just a number, e.g. the standard screen gutter. */
+  --spacing-screen-x: 1.25rem;   /* 20px — horizontal screen padding */
+  --spacing-gutter: 0.75rem;     /* 12px — default gap between cards/rows */
+
+  /* ---------- RADIUS ---------- */
+  --radius-sm: 0.625rem;   /* 10px — icon buttons, inputs */
+  --radius-md: 0.75rem;    /* 12px — buttons, cards, sheets content */
+  --radius-lg: 0.875rem;   /* 14px — cards, cat tiles */
+  --radius-xl: 1.125rem;   /* 18px — dialogs, FAB */
+  --radius-2xl: 1.375rem;  /* 22px — bottom sheets */
+  --radius-full: 9999px;   /* pills, dots, avatars */
+}
