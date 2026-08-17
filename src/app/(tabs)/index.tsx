@@ -3,12 +3,13 @@ import {
   BottomSheetView
 } from '@gorhom/bottom-sheet';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useRef } from 'react';
-import { Pressable, Text, View } from "react-native";
+import { Alert, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BottomSheetCard } from '../../../components/BottomSheetCard';
 import { VaultCard } from "../../../components/VaultCard";
-
 
 export default function App() {
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
@@ -16,6 +17,43 @@ export default function App() {
   const handlePresentAddSheet = useCallback(() => {
     bottomSheetModalRef.current?.present();
   }, []);
+
+  const handleAddFiles = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: '*/*',
+        multiple: true,
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled) return;
+
+      // Todo Store The files somewhere.
+      // console.log('Picked files:', result.assets);
+    } catch (err) {
+      console.error('Document picker error:', err);
+    }
+  }
+
+  const handleAddPhotos = async () => {
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (!permissionResult.granted) {
+      Alert.alert('Permission required', 'Photo library access is required to add images to your vault.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images', 'videos'],
+      allowsMultipleSelection: true,
+      quality: 1,
+    });
+
+    if (result.canceled) return;
+
+    // Todo store the images somewhere.
+    console.log('Picked files:', result.assets);
+  }
 
   return (
     <View className="flex-1 bg-bg-main p-5">
@@ -106,7 +144,7 @@ export default function App() {
             subtitle="From your camera roll"
             onPress={() => {
               bottomSheetModalRef.current?.dismiss();
-              // trigger expo-image-picker
+              setTimeout(handleAddPhotos, 300);
             }}
           />
           <BottomSheetCard
@@ -115,7 +153,7 @@ export default function App() {
             subtitle="PDF, Word, and more"
             onPress={() => {
               bottomSheetModalRef.current?.dismiss();
-              // trigger expo-document-picker
+              setTimeout(handleAddFiles, 300);
             }}
           />
           <BottomSheetCard
@@ -124,7 +162,7 @@ export default function App() {
             subtitle="Any file from your device"
             onPress={() => {
               bottomSheetModalRef.current?.dismiss();
-              // trigger expo-document-picker (all types)
+              setTimeout(handleAddFiles, 300);
             }}
           />
 
