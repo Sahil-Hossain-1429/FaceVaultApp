@@ -1,13 +1,13 @@
 import Ionicons from '@react-native-vector-icons/ionicons';
+import type { ComponentProps } from 'react';
 import { Pressable, Text, View } from "react-native";
 
-
 type VaultCardProps = {
-  icon: string;
+  icon: ComponentProps<typeof Ionicons>['name'];
   title: string;
-  count: string;          // e.g. "12 folders", "64 photos"
-  iconColor: string;      // hex, e.g. "#5FAEF7"
-  iconBg: string;         // hex, e.g. "rgba(95,174,247,0.12)"
+  count: string;
+  iconColor: string;
+  iconBg: string;
   onPress?: () => void;
 };
 

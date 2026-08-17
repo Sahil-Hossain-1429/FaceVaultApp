@@ -1,9 +1,22 @@
+import {
+  BottomSheetModal,
+  BottomSheetView
+} from '@gorhom/bottom-sheet';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import { useCallback, useRef } from 'react';
 import { Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { BottomSheetCard } from '../../../components/BottomSheetCard';
 import { VaultCard } from "../../../components/VaultCard";
 
+
 export default function App() {
+  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+
+  const handlePresentAddSheet = useCallback(() => {
+    bottomSheetModalRef.current?.present();
+  }, []);
+
   return (
     <View className="flex-1 bg-bg-main p-5">
       <SafeAreaView>
@@ -58,12 +71,73 @@ export default function App() {
         bottom: 20,
       }}>
         <Pressable
-          onPress={() => console.log('Add + Button pressed')}
+          onPress={handlePresentAddSheet}
           className="bg-primary w-20 h-20 rounded-full items-center justify-center active:opacity-80"
         >
           <Ionicons name="add" size={28} color="#ffffff" />
         </Pressable>
       </View>
+
+
+      <BottomSheetModal
+        ref={bottomSheetModalRef}
+        // onChange={handleSheetChanges}
+        enableDynamicSizing
+        backgroundStyle={{ backgroundColor: '#1B293C' }}
+        handleIndicatorStyle={{ backgroundColor: '#43556B' }}
+      >
+        <BottomSheetView className="px-5 pb-8">
+          <Text className="text-heading-sm font-bold text-text-white px-1.5 pb-1.5">
+            Add to Vault
+          </Text>
+
+          <BottomSheetCard
+            icon="folder-outline"
+            title="Create New Folder"
+            subtitle="Organize files into a folder"
+            onPress={() => {
+              bottomSheetModalRef.current?.dismiss();
+              // trigger folder-name prompt
+            }}
+          />
+          <BottomSheetCard
+            icon="images-outline"
+            title="Add Photos / Images"
+            subtitle="From your camera roll"
+            onPress={() => {
+              bottomSheetModalRef.current?.dismiss();
+              // trigger expo-image-picker
+            }}
+          />
+          <BottomSheetCard
+            icon="document-text-outline"
+            title="Add Documents"
+            subtitle="PDF, Word, and more"
+            onPress={() => {
+              bottomSheetModalRef.current?.dismiss();
+              // trigger expo-document-picker
+            }}
+          />
+          <BottomSheetCard
+            icon="document-attach-outline"
+            title="Add Files"
+            subtitle="Any file from your device"
+            onPress={() => {
+              bottomSheetModalRef.current?.dismiss();
+              // trigger expo-document-picker (all types)
+            }}
+          />
+
+          <Pressable
+            onPress={() => bottomSheetModalRef.current?.dismiss()}
+            className="bg-surface-default border border-border-default rounded-xl py-4 items-center mt-3.5"
+          >
+            <Text className="text-text-primary font-semibold text-body">Cancel</Text>
+          </Pressable>
+        </BottomSheetView>
+      </BottomSheetModal>
+
+
     </View>
   );
 }
