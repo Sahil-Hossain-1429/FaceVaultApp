@@ -57,10 +57,19 @@ export function VaultLockProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         let isMounted = true;
         (async () => {
-            const exists = await hasVaultToken();
-            if (isMounted) {
-                setHasCompletedSetup(exists);
-                setIsInitializing(false);
+            try {
+                const exists = await hasVaultToken();
+                if (isMounted) {
+                    setHasCompletedSetup(exists);
+                    setIsInitializing(false);
+                }
+            } catch (err) {
+                console.warn('[VaultLockContext] hasVaultToken failed, defaulting to no-setup:', err);
+                // Fail safe: treat as "no setup yet" rather than hanging forever
+                if (isMounted) {
+                    setHasCompletedSetup(false);
+                    setIsInitializing(false);
+                }
             }
         })();
         return () => {
