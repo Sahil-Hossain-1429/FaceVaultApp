@@ -1,3 +1,4 @@
+import { importFile } from '@/lib/fileStorage';
 import {
   BottomSheetModal,
   BottomSheetView
@@ -5,6 +6,7 @@ import {
 import Ionicons from '@react-native-vector-icons/ionicons';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
+import { router } from 'expo-router';
 import { useCallback, useRef } from 'react';
 import { Alert, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -28,8 +30,9 @@ export default function App() {
 
       if (result.canceled) return;
 
-      // Todo Store The files somewhere.
-      // console.log('Picked files:', result.assets);
+      for (const asset of result.assets){
+        importFile(asset.uri, 'documents', asset.name);
+      }
     } catch (err) {
       console.error('Document picker error:', err);
     }
@@ -51,7 +54,11 @@ export default function App() {
 
     if (result.canceled) return;
 
-    // Todo store the images somewhere.
+    for(const asset of result.assets){
+      const fileName = asset.fileName ?? `img_${Date.now()}.jpg`;
+      importFile(asset.uri, 'images', fileName);
+    }
+
     console.log('Picked files:', result.assets);
   }
 
@@ -74,7 +81,7 @@ export default function App() {
             count="0"
             iconColor="#5FAEF7"
             iconBg="rgba(95,174,247,0.12)"
-            onPress={() => { }}
+            onPress={() => {}}
           />
           <VaultCard
             icon="images"
@@ -82,7 +89,7 @@ export default function App() {
             count="0"
             iconColor="#38C97A"
             iconBg="rgba(56,201,122,0.12)"
-            onPress={() => { }}
+            onPress={() => router.push('/folder/images')}
           />
           <VaultCard
             icon="document-text"
@@ -90,7 +97,7 @@ export default function App() {
             count="0"
             iconColor="#F5A623"
             iconBg="rgba(245,166,35,0.12)"
-            onPress={() => { }}
+            onPress={() => router.push('/folder/documents')}
           />
           <VaultCard
             icon="document-attach"
@@ -98,7 +105,7 @@ export default function App() {
             count="0"
             iconColor="#9D7BEA"
             iconBg="rgba(157,123,234,0.12)"
-            onPress={() => { }}
+            onPress={() => router.push('/folder/Other Files')}
           />
         </View>
       </SafeAreaView>

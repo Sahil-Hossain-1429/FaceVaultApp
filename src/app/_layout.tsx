@@ -1,9 +1,9 @@
 import "@/global.css";
 import { ensureVaultDir } from "@/lib/fileStorage";
-import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { Stack } from "expo-router";
-import { useEffect } from 'react';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useEffect } from "react";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 export default function RootLayout() {
   useEffect(() => {
@@ -13,9 +13,7 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <BottomSheetModalProvider>
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        </Stack>
+        <Stack screenOptions={{ headerShown: false }} />
       </BottomSheetModalProvider>
     </GestureHandlerRootView>
   );
