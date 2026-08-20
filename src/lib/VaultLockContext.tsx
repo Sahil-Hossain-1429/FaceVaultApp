@@ -36,7 +36,7 @@ type VaultLockContextValue = {
 
     setAutoLockTimeout: (timeout: AutoLockTimeout) => void;
     checkBiometricCapability: () => Promise<BiometricCapability>;
-    unlockWithBiometrics: () => Promise<BiometricAuthOutcome>;
+    unlockWithBiometrics: (disableDeviceFallback?: boolean) => Promise<BiometricAuthOutcome>;
     unlockWithToken: () => Promise<void>;
     completeSecuritySetup: () => Promise<void>;
     resetVaultSecurity: () => Promise<void>;
@@ -107,13 +107,16 @@ export function VaultLockProvider({ children }: { children: ReactNode }) {
 
     const checkBiometricCapability = useCallback(() => getBiometricCapability(), []);
 
-    const unlockWithBiometrics = useCallback(async (): Promise<BiometricAuthOutcome> => {
-        const outcome = await promptBiometricUnlock();
-        if (outcome.status === 'success') {
-            setIsUnlocked(true);
-        }
-        return outcome;
-    }, []);
+    const unlockWithBiometrics = useCallback(
+        async (disableDeviceFallback: boolean = true): Promise<BiometricAuthOutcome> => {
+            const outcome = await promptBiometricUnlock(undefined, disableDeviceFallback);
+            if (outcome.status === 'success') {
+                setIsUnlocked(true);
+            }
+            return outcome;
+        },
+        []
+    );
 
     const unlockWithToken = useCallback(async () => {
         setIsUnlocked(true);

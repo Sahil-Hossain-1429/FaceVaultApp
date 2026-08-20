@@ -33,7 +33,8 @@ export type BiometricAuthOutcome =
     | { status: 'unavailable' };
 
 export async function promptBiometricUnlock(
-    promptMessage = 'Unlock Your Vault'
+    promptMessage = 'Unlock Your Vault',
+    disableDeviceFallback = true
 ): Promise<BiometricAuthOutcome> {
     const capability = await getBiometricCapability();
 
@@ -44,7 +45,7 @@ export async function promptBiometricUnlock(
 
     const result = await LocalAuthentication.authenticateAsync({
         promptMessage,
-        disableDeviceFallback: true,
+        disableDeviceFallback,
         cancelLabel: 'Cancel',
     });
 
