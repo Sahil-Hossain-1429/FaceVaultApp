@@ -7,6 +7,12 @@ import { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
+// TODO: replace with Clerk's useAuth() → { isLoaded, isSignedIn }
+// Hardcoded false so the (auth)/login screen is reachable for UI work
+// before Clerk is wired in. Flip to true locally if you need to jump
+// straight to vault setup/lock while building those screens instead.
+const STUB_IS_SIGNED_IN = false;
+
 export default function RootLayout() {
   useEffect(() => {
     ensureVaultDir();
@@ -28,11 +34,24 @@ function GatedNavigator() {
   const router = useRouter();
   const segments = useSegments();
 
+  // TODO: swap for Clerk's isLoaded/isSignedIn once wired in.
+  const isSignedIn = STUB_IS_SIGNED_IN;
+
   useEffect(() => {
     if (isInitializing) return;
 
-    const currentGroup = segments[0]; // e.g. "lock", "security-setup", "(tabs)", "folder"
-    const onAuthScreen = currentGroup === "lock" || currentGroup === "security-setup";
+    const currentGroup = segments[0]; // e.g. "(auth)", "lock", "security-setup", "(tabs)", "folder"
+    const onAuthScreen =
+      currentGroup === "(auth)" ||
+      currentGroup === "lock" ||
+      currentGroup === "security-setup";
+
+    if (!isSignedIn) {
+      if (currentGroup !== "(auth)") {
+        router.replace("/login");
+      }
+      return;
+    }
 
     if (!hasCompletedSetup) {
       if (currentGroup !== "security-setup") {
@@ -51,7 +70,7 @@ function GatedNavigator() {
     if (onAuthScreen) {
       router.replace("/");
     }
-  }, [isInitializing, hasCompletedSetup, isUnlocked, segments, router]);
+  }, [isInitializing, isSignedIn, hasCompletedSetup, isUnlocked, segments, router]);
 
   if (isInitializing) {
     return (
