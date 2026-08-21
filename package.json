@@ -8,6 +8,7 @@
     "@react-native-vector-icons/fontawesome": "^13.1.2",
     "@react-native-vector-icons/ionicons": "^13.1.2",
     "@react-navigation/native": "^7.3.16",
+    "@sbaiahmed1/react-native-biometrics": "^0.16.0",
     "expo": "~57.0.13",
     "expo-constants": "~57.0.11",
     "expo-device": "~57.0.1",

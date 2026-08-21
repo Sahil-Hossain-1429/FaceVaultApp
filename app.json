@@ -47,12 +47,6 @@
           "cameraPermission": "FaceVault needs camera access so you can capture and store new photos securely."
         }
       ],
-      [
-        "expo-local-authentication",
-        {
-          "faceIDPermission": "Allow FaceVault to use Face ID to unlock your vault."
-        }
-      ],
       "expo-secure-store"
     ],
     "experiments": {

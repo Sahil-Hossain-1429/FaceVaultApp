@@ -11,7 +11,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 // Hardcoded false so the (auth)/login screen is reachable for UI work
 // before Clerk is wired in. Flip to true locally if you need to jump
 // straight to vault setup/lock while building those screens instead.
-const STUB_IS_SIGNED_IN = false;
+const STUB_IS_SIGNED_IN = false; // TODO should be false, but for testing keeping it true
 
 export default function RootLayout() {
   useEffect(() => {
