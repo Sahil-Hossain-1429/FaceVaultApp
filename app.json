@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "FaceVaultApp",
-    "slug": "FaceVaultApp",
+    "slug": "facevault",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -20,7 +20,9 @@
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
       ],
       "package": "com.sahilh.FaceVaultApp"
     },
@@ -41,14 +43,28 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Vaultface needs access to your photos so you can add them to your vault.",
-          "cameraPermission": "Vaultface needs camera access so you can capture and store new photos securely."
+          "photosPermission": "FaceVault needs access to your photos so you can add them to your vault.",
+          "cameraPermission": "FaceVault needs camera access so you can capture and store new photos securely."
         }
-      ]
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow FaceVault to use Face ID to unlock your vault."
+        }
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "854ee992-a33e-4430-bb7b-18a9353d15bb"
+      }
+    },
+    "owner": "sahilh"
   }
 }
