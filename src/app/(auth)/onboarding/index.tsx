@@ -27,7 +27,7 @@ export default function OnboardingScreen() {
 
                 {/* Primary CTA */}
                 <Pressable
-                    onPress={() => console.log("Get Started button pressed")}
+                    onPress={() => router.push("/(auth)/SignUp")}
                     className="w-full py-4 rounded-md bg-primary items-center justify-center active:bg-primary-hover"
                 >
                     <Text className="font-sans text-2xl font-bold text-bg-dark">
