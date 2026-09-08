@@ -1,13 +1,16 @@
 import Ionicons from "@react-native-vector-icons/ionicons";
+import { Eye, EyeOff } from "lucide-react-native";
 import { useState } from "react";
 import {
     ActivityIndicator,
     Pressable,
     Text,
     TextInput,
-    View,
+    TouchableOpacity,
+    View
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
 
 export default function LoginScreen() {
     // const { unlockWithBiometrics } = useVaultLock();
@@ -70,6 +73,8 @@ export default function LoginScreen() {
         console.log("[LoginScreen] navigate to recover account — not yet implemented");
     };
 
+    const [showPassword, setShowPassword] = useState(false);
+
     return (
         <View
             className="flex-1 bg-bg-main"
@@ -105,17 +110,32 @@ export default function LoginScreen() {
                     <Text className="text-text-secondary text-caption font-semibold font-sans mb-1.5">
                         Password
                     </Text>
-                    <TextInput
-                        value={password}
-                        onChangeText={setPassword}
-                        placeholder="••••••••"
-                        placeholderTextColor="#60748D"
-                        secureTextEntry
-                        className="w-full bg-surface-default border border-border-default rounded-md px-4 py-3.5 text-text-primary text-body font-sans mb-2"
-                    />
+                    <View className="w-full flex-row items-center bg-surface-default border border-border-default rounded-md">
+                        <TextInput
+                            value={password}
+                            onChangeText={setPassword}
+                            placeholder="••••••••"
+                            placeholderTextColor="#60748D"
+                            secureTextEntry={!showPassword}
+                            className="flex-1 px-4 py-3.5 text-text-primary text-body font-sans"
+                        />
+                        <TouchableOpacity
+                            onPress={() => setShowPassword((prev) => !prev)}
+                            className="px-3"
+                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        >
+                            {showPassword ? (
+                                <EyeOff size={20} color="#60748D" />
+                            ) : (
+                                <Eye size={20} color="#60748D" />
+                            )}
+                        </TouchableOpacity>
+                    </View>
 
-                    <Pressable className="self-end mb-4">
-                        <Text className="text-primary text-caption font-semibold font-sans">
+                    <Pressable className="my-6"
+                        onPress={() => console.log("Forgot Password Press")}
+                    >
+                        <Text className="text-balance text-primary font-semibold">
                             Forgot password?
                         </Text>
                     </Pressable>
@@ -165,12 +185,12 @@ export default function LoginScreen() {
                 </View>
 
                 {
-                // biometricStatus && 
-                (
-                    <Text className="text-text-muted text-caption font-sans text-center mt-3">
-                        {/* {biometricStatus} */}
-                    </Text>
-                )}
+                    // biometricStatus && 
+                    (
+                        <Text className="text-text-muted text-caption font-sans text-center mt-3">
+                            {/* {biometricStatus} */}
+                        </Text>
+                    )}
 
                 <View className="flex-row items-center gap-3 my-5">
                     <View className="flex-1 h-px bg-border-default" />
@@ -194,7 +214,7 @@ export default function LoginScreen() {
                     <Text className="text-text-disabled text-caption font-sans">
                         Don&apos;t have an account?
                     </Text>
-                    <Pressable 
+                    <Pressable
                     // onPress={handleCreateAccount}
                     >
                         <Text className="text-primary text-caption font-semibold font-sans">
@@ -202,7 +222,7 @@ export default function LoginScreen() {
                         </Text>
                     </Pressable>
                     <Text className="text-text-disabled text-caption font-sans">·</Text>
-                    <Pressable 
+                    <Pressable
                     // onPress={handleRecoverAccount}
                     >
                         <Text className="text-primary text-caption font-semibold font-sans">
