@@ -15,6 +15,10 @@ config.resolver = {
     ...resolver,
     assetExts: resolver.assetExts.filter((ext) => ext !== "svg"),
     sourceExts: [...resolver.sourceExts, "svg"],
+    alias: {
+        "@": "./src",
+        "@/assets": "./assets",
+    },
 };
 // -----------------------------
 

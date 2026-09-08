@@ -1,29 +1,23 @@
 import { useRouter } from "expo-router";
-// import { cssInterop } from "nativewind";
-import { Pressable, Text, View } from "react-native";
-
-
-// const Logo = cssInterop(LogoSvg, {
-//     className: {
-//         target: "style",
-//         nativeStyleToProp: { fill: true },
-//     },
-// });
+import { Image, Pressable, Text, View } from "react-native";
 
 export default function OnboardingScreen() {
     const router = useRouter();
 
     return (
         <View className="flex-1 bg-bg-main">
+            {/* Logo ring */}
+            <View className="items-center justify-center mt-30">
+                <Image
+                    source={require("@/assets/images/appLogo.png")}
+                    className="w-100 h-100"
+                    resizeMode="contain"
+                />
+            </View>
             <View className="flex-1 justify-end px-screen-x pb-9">
-                {/* Logo ring */}
-                <View className="flex-1 items-center justify-center">
-                    {/* <Logo width={250} height={250} className="text-primary" /> */}
-                </View>
-
                 {/* Headline + subcopy */}
                 <View className="items-center mb-8">
-                    <Text className="text-display font-semibold text-text-white text-center leading-5 tracking-tight">
+                    <Text className="text-display font-semibold text-text-white text-center leading-8 tracking-tight">
                         Your Vault,{"\n"}Your Face,{"\n"}Your Privacy
                     </Text>
                     <Text className="font-sans text-body-sm text-text-muted text-center mt-3">
@@ -33,6 +27,7 @@ export default function OnboardingScreen() {
 
                 {/* Primary CTA */}
                 <Pressable
+                    onPress={() => console.log("Get Started button pressed")}
                     className="w-full py-4 rounded-md bg-primary items-center justify-center active:bg-primary-hover"
                 >
                     <Text className="font-sans text-2xl font-bold text-bg-dark">
@@ -41,7 +36,9 @@ export default function OnboardingScreen() {
                 </Pressable>
 
                 {/* Secondary link */}
+
                 <Pressable
+                    onPress={() => router.push("/login")}
                     className="w-full py-4 rounded-md items-center justify-center mb-2"
                 >
                     <Text className="font-sans text-text-disabled text-center leading-6">

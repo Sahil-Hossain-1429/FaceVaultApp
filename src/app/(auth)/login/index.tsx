@@ -1,4 +1,3 @@
-import { useVaultLock } from "@/lib/VaultLockContext";
 import Ionicons from "@react-native-vector-icons/ionicons";
 import { useState } from "react";
 import {
@@ -11,13 +10,13 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function LoginScreen() {
-    const { unlockWithBiometrics } = useVaultLock();
+    // const { unlockWithBiometrics } = useVaultLock();
     const insets = useSafeAreaInsets();
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [biometricStatus, setBiometricStatus] = useState<string | null>(null);
+    // const [biometricStatus, setBiometricStatus] = useState<string | null>(null);
 
     // TODO: wire to Clerk's useSignIn() — this currently just simulates a
     // network call so the UI/loading state can be exercised end-to-end.
@@ -34,32 +33,32 @@ export default function LoginScreen() {
     };
 
     // Real: biometric-only prompt via the existing vault lock context.
-    const handleFaceId = async () => {
-        setBiometricStatus(null);
-        const outcome = await unlockWithBiometrics(true);
-        console.log("[LoginScreen] Face ID outcome:", JSON.stringify(outcome));
-        if (outcome.status !== "success") {
-            setBiometricStatus(
-                outcome.status === "unavailable"
-                    ? "Face ID isn't set up on this device."
-                    : "Face ID didn't match. Try again."
-            );
-        }
-    };
+    // const handleFaceId = async () => {
+    //     setBiometricStatus(null);
+    //     const outcome = await unlockWithBiometrics(true);
+    //     console.log("[LoginScreen] Face ID outcome:", JSON.stringify(outcome));
+    //     if (outcome.status !== "success") {
+    //         setBiometricStatus(
+    //             outcome.status === "unavailable"
+    //                 ? "Face ID isn't set up on this device."
+    //                 : "Face ID didn't match. Try again."
+    //         );
+    //     }
+    // };
 
     // Real: allows fallthrough to the device passcode UI.
-    const handleDevicePasscode = async () => {
-        setBiometricStatus(null);
-        const outcome = await unlockWithBiometrics(false);
-        console.log("[LoginScreen] Passcode outcome:", JSON.stringify(outcome));
-        if (outcome.status !== "success") {
-            setBiometricStatus(
-                outcome.status === "unavailable"
-                    ? "No device passcode is set up."
-                    : "Passcode entry was cancelled."
-            );
-        }
-    };
+    // const handleDevicePasscode = async () => {
+    //     setBiometricStatus(null);
+    //     const outcome = await unlockWithBiometrics(false);
+    //     console.log("[LoginScreen] Passcode outcome:", JSON.stringify(outcome));
+    //     if (outcome.status !== "success") {
+    //         setBiometricStatus(
+    //             outcome.status === "unavailable"
+    //                 ? "No device passcode is set up."
+    //                 : "Passcode entry was cancelled."
+    //         );
+    //     }
+    // };
 
     // TODO: route to /(auth)/create-account once that screen exists
     const handleCreateAccount = () => {
@@ -146,7 +145,7 @@ export default function LoginScreen() {
 
                 <View className="flex-row gap-3">
                     <Pressable
-                        onPress={handleFaceId}
+                        // onPress={handleFaceId}
                         className="flex-1 flex-row items-center justify-center gap-2 bg-surface-default border border-border-default rounded-md py-3.5 active:bg-surface-raised"
                     >
                         <Ionicons name="scan-outline" size={18} color="#F3F6F9" />
@@ -155,7 +154,7 @@ export default function LoginScreen() {
                         </Text>
                     </Pressable>
                     <Pressable
-                        onPress={handleDevicePasscode}
+                        // onPress={handleDevicePasscode}
                         className="flex-1 flex-row items-center justify-center gap-2 bg-surface-default border border-border-default rounded-md py-3.5 active:bg-surface-raised"
                     >
                         <Ionicons name="keypad-outline" size={18} color="#F3F6F9" />
@@ -165,9 +164,11 @@ export default function LoginScreen() {
                     </Pressable>
                 </View>
 
-                {biometricStatus && (
+                {
+                // biometricStatus && 
+                (
                     <Text className="text-text-muted text-caption font-sans text-center mt-3">
-                        {biometricStatus}
+                        {/* {biometricStatus} */}
                     </Text>
                 )}
 
@@ -193,13 +194,17 @@ export default function LoginScreen() {
                     <Text className="text-text-disabled text-caption font-sans">
                         Don&apos;t have an account?
                     </Text>
-                    <Pressable onPress={handleCreateAccount}>
+                    <Pressable 
+                    // onPress={handleCreateAccount}
+                    >
                         <Text className="text-primary text-caption font-semibold font-sans">
                             Create one
                         </Text>
                     </Pressable>
                     <Text className="text-text-disabled text-caption font-sans">·</Text>
-                    <Pressable onPress={handleRecoverAccount}>
+                    <Pressable 
+                    // onPress={handleRecoverAccount}
+                    >
                         <Text className="text-primary text-caption font-semibold font-sans">
                             Recover account
                         </Text>

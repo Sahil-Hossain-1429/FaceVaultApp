@@ -53,7 +53,8 @@
           "faceIDPermission": "Allow FaceVault to use Face ID to unlock your vault."
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-image"
     ],
     "experiments": {
       "typedRoutes": true,
