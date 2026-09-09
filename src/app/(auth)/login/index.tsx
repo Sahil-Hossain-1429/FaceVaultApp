@@ -221,14 +221,6 @@ export default function LoginScreen() {
                             Create one
                         </Text>
                     </Pressable>
-                    <Text className="text-text-disabled text-caption font-sans">·</Text>
-                    <Pressable
-                    // onPress={handleRecoverAccount}
-                    >
-                        <Text className="text-primary text-caption font-semibold font-sans">
-                            Recover account
-                        </Text>
-                    </Pressable>
                 </View>
             </View>
         </View>

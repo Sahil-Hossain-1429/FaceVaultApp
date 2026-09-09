@@ -1,4 +1,4 @@
-import { useVaultLock } from "@/lib/VaultLockContext";
+// import { useVaultLock } from "@/lib/VaultLockContext";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
@@ -9,13 +9,13 @@ import { Pressable, Text, View } from "react-native";
  * before the visual design is built.
  */
 export default function LockScreen() {
-    const { unlockWithBiometrics } = useVaultLock();
+    // const { unlockWithBiometrics } = useVaultLock();
     const [lastOutcome, setLastOutcome] = useState<string | null>(null);
 
     const handlePress = async () => {
-        const outcome = await unlockWithBiometrics();
-        console.log('[LockScreen] unlockWithBiometrics outcome:', JSON.stringify(outcome));
-        setLastOutcome(JSON.stringify(outcome));
+        // const outcome = await unlockWithBiometrics();
+        // console.log('[LockScreen] unlockWithBiometrics outcome:', JSON.stringify(outcome));
+        // setLastOutcome(JSON.stringify(outcome));
     };
 
     return (

@@ -46,26 +46,26 @@
 //       currentGroup === "lock" ||
 //       currentGroup === "security-setup";
 
-    // if (!isSignedIn) {
-    //   if (currentGroup !== "(auth)") {
-    //     router.replace("/login");
-    //   }
-    //   return;
-    // }
+// if (!isSignedIn) {
+//   if (currentGroup !== "(auth)") {
+//     router.replace("/login");
+//   }
+//   return;
+// }
 
-    // if (!hasCompletedSetup) {
-    //   if (currentGroup !== "security-setup") {
-    //     router.replace("/security-setup");
-    //   }
-    //   return;
-    // }
+// if (!hasCompletedSetup) {
+//   if (currentGroup !== "security-setup") {
+//     router.replace("/security-setup");
+//   }
+//   return;
+// }
 
-    // if (!isUnlocked) {
-    //   if (currentGroup !== "lock") {
-    //     router.replace("/lock");
-    //   }
-    //   return;
-    // }
+// if (!isUnlocked) {
+//   if (currentGroup !== "lock") {
+//     router.replace("/lock");
+//   }
+//   return;
+// }
 
 //     if (onAuthScreen) {
 //       router.replace("/");
@@ -90,12 +90,21 @@
 //   return <Slot />;
 // }
 
+
 import "@/global.css";
 import { ensureVaultDir } from "@/lib/fileStorage";
+import { ClerkProvider } from '@clerk/expo';
+import { tokenCache } from '@clerk/expo/token-cache';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { Stack } from "expo-router";
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+
+const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
+
+if (!publishableKey) {
+  throw new Error('Add your Clerk Publishable Key to the .env file');
+}
 
 export default function RootLayout() {
   useEffect(() => {
@@ -103,12 +112,14 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <BottomSheetModalProvider>
-        <Stack screenOptions={{headerShown: false}}>
-          <Stack.Screen name="(tabs)"/>
-        </Stack>
-      </BottomSheetModalProvider>
-    </GestureHandlerRootView>
+    <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <BottomSheetModalProvider>
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(tabs)" />
+          </Stack>
+        </BottomSheetModalProvider>
+      </GestureHandlerRootView>
+    </ClerkProvider>
   );
 }

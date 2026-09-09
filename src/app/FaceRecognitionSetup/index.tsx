@@ -1,8 +1,8 @@
-import { useVaultLock } from "@/lib/VaultLockContext";
+// import { useVaultLock } from "@/lib/VaultLockContext";
 import { Pressable, Text, View } from "react-native";
 
 export default function SecuritySetupScreen() {
-    const { completeSecuritySetup } = useVaultLock();
+    // const { completeSecuritySetup } = useVaultLock();
 
     return (
         <View
@@ -18,7 +18,7 @@ export default function SecuritySetupScreen() {
                 Set Up Vault Security
             </Text>
             <Pressable
-                onPress={() => completeSecuritySetup()}
+                // onPress={() => completeSecuritySetup()}
                 style={{
                     backgroundColor: "#5FAEF7",
                     paddingVertical: 14,
