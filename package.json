@@ -10,6 +10,7 @@
     "@react-native-vector-icons/ionicons": "^13.1.2",
     "@react-navigation/native": "^7.3.16",
     "expo": "~57.0.13",
+    "expo-auth-session": "~57.0.11",
     "expo-constants": "~57.0.11",
     "expo-device": "~57.0.1",
     "expo-document-picker": "~57.0.1",

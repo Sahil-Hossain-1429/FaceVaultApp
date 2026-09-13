@@ -1,6 +1,9 @@
+import { useSignIn, useSSO } from "@clerk/expo";
 import Ionicons from "@react-native-vector-icons/ionicons";
+import { router } from "expo-router";
+import * as WebBrowser from "expo-web-browser";
 import { Eye, EyeOff } from "lucide-react-native";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
     ActivityIndicator,
     Pressable,
@@ -11,67 +14,88 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+// Required once at module scope for useSSO() to correctly close the
+// in-app browser and return control to the app after the OAuth redirect.
+WebBrowser.maybeCompleteAuthSession();
+
+// Warms up the Android browser process so the SSO popup opens faster.
+const useWarmUpBrowser = () => {
+    useEffect(() => {
+        void WebBrowser.warmUpAsync();
+        return () => {
+            void WebBrowser.coolDownAsync();
+        };
+    }, []);
+};
 
 export default function LoginScreen() {
-    // const { unlockWithBiometrics } = useVaultLock();
+    useWarmUpBrowser();
     const insets = useSafeAreaInsets();
+
+    const { signIn, errors } = useSignIn();
+    const { startSSOFlow } = useSSO();
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
-    // const [biometricStatus, setBiometricStatus] = useState<string | null>(null);
+    const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
+    const [formError, setFormError] = useState<string | null>(null);
 
-    // TODO: wire to Clerk's useSignIn() — this currently just simulates a
-    // network call so the UI/loading state can be exercised end-to-end.
-    const handleLogin = async () => {
+    const handleLogin = useCallback(async () => {
+        setFormError(null);
         setIsSubmitting(true);
-        console.log("[LoginScreen] handleLogin stub — email:", email);
-        await new Promise((resolve) => setTimeout(resolve, 600));
-        setIsSubmitting(false);
-    };
+        try {
+            const createResult = await signIn.create({ identifier: email });
+            if (createResult?.error) {
+                setFormError(createResult.error.message ?? "Couldn't find that account.");
+                return;
+            }
 
-    // TODO: wire to Clerk's OAuth flow (startOAuthFlow with Google strategy)
-    const handleGoogleAuth = () => {
-        console.log("[LoginScreen] handleGoogleAuth stub");
-    };
+            const passwordResult = await signIn.password({ password });
+            if (passwordResult?.error) {
+                return;
+            }
 
-    // Real: biometric-only prompt via the existing vault lock context.
-    // const handleFaceId = async () => {
-    //     setBiometricStatus(null);
-    //     const outcome = await unlockWithBiometrics(true);
-    //     console.log("[LoginScreen] Face ID outcome:", JSON.stringify(outcome));
-    //     if (outcome.status !== "success") {
-    //         setBiometricStatus(
-    //             outcome.status === "unavailable"
-    //                 ? "Face ID isn't set up on this device."
-    //                 : "Face ID didn't match. Try again."
-    //         );
-    //     }
-    // };
+            if (signIn.status === "complete") {
+                await signIn.finalize({
+                    navigate: () => router.replace("/(tabs)"),
+                });
+            }
+            //  else {
+            //     // Any status other than "complete" here means Clerk wants
+            //     // another step (e.g. MFA, Device Trust) that this screen
+            //     // doesn't handle yet.
+            //     setFormError("Additional verification required.");
+            // }
+        } catch (err) {
+            console.error("[LoginScreen] handleLogin error:", err);
+            setFormError("Something went wrong. Please try again.");
+        } finally {
+            setIsSubmitting(false);
+        }
+    }, [signIn, email, password]);
 
-    // Real: allows fallthrough to the device passcode UI.
-    // const handleDevicePasscode = async () => {
-    //     setBiometricStatus(null);
-    //     const outcome = await unlockWithBiometrics(false);
-    //     console.log("[LoginScreen] Passcode outcome:", JSON.stringify(outcome));
-    //     if (outcome.status !== "success") {
-    //         setBiometricStatus(
-    //             outcome.status === "unavailable"
-    //                 ? "No device passcode is set up."
-    //                 : "Passcode entry was cancelled."
-    //         );
-    //     }
-    // };
+    const handleGoogleAuth = useCallback(async () => {
+        setFormError(null);
+        setIsGoogleSubmitting(true);
+        try {
+            const { createdSessionId, setActive } = await startSSOFlow({
+                strategy: "oauth_google",
+            });
 
-    // TODO: route to /(auth)/create-account once that screen exists
-    const handleCreateAccount = () => {
-        console.log("[LoginScreen] navigate to create account — not yet implemented");
-    };
-
-    // TODO: route to /(auth)/recover-account once that screen exists
-    const handleRecoverAccount = () => {
-        console.log("[LoginScreen] navigate to recover account — not yet implemented");
-    };
+            if (createdSessionId && setActive) {
+                await setActive({ session: createdSessionId });
+                router.replace("/(tabs)");
+            }
+            // If createdSessionId is undefined, the user needs to complete
+            // additional steps (e.g. account transfer) — not handled here.
+        } catch (err) {
+            console.error("[LoginScreen] handleGoogleAuth error:", err);
+            setFormError("Google sign-in failed. Please try again.");
+        } finally {
+            setIsGoogleSubmitting(false);
+        }
+    }, [startSSOFlow]);
 
     const [showPassword, setShowPassword] = useState(false);
 
@@ -106,6 +130,11 @@ export default function LoginScreen() {
                         keyboardType="email-address"
                         className="w-full bg-surface-default border border-border-default rounded-md px-4 py-3.5 text-text-primary text-body font-sans mb-3"
                     />
+                    {errors?.fields?.identifier?.message ? (
+                        <Text className="text-danger text-caption font-sans mb-2 -mt-2">
+                            {errors.fields.identifier.message}
+                        </Text>
+                    ) : null}
 
                     <Text className="text-text-secondary text-caption font-semibold font-sans mb-1.5">
                         Password
@@ -131,6 +160,17 @@ export default function LoginScreen() {
                             )}
                         </TouchableOpacity>
                     </View>
+                    {errors?.fields?.password?.message ? (
+                        <Text className="text-danger text-caption font-sans mt-1.5">
+                            {errors.fields.password.message}
+                        </Text>
+                    ) : null}
+
+                    {formError ? (
+                        <Text className="text-danger text-caption font-sans mt-3 text-center">
+                            {formError}
+                        </Text>
+                    ) : null}
 
                     <Pressable className="my-6"
                         onPress={() => console.log("Forgot Password Press")}
@@ -202,12 +242,19 @@ export default function LoginScreen() {
 
                 <Pressable
                     onPress={handleGoogleAuth}
-                    className="w-full flex-row items-center justify-center gap-2 bg-surface-default border border-border-default rounded-md py-3.5 active:bg-surface-raised"
+                    disabled={isGoogleSubmitting}
+                    className="w-full flex-row items-center justify-center gap-2 bg-surface-default border border-border-default rounded-md py-3.5 active:bg-surface-raised disabled:opacity-50"
                 >
-                    <Ionicons name="logo-google" size={16} color="#F3F6F9" />
-                    <Text className="text-text-primary text-body-sm font-semibold font-sans">
-                        Continue with Google
-                    </Text>
+                    {isGoogleSubmitting ? (
+                        <ActivityIndicator color="#F3F6F9" />
+                    ) : (
+                        <>
+                            <Ionicons name="logo-google" size={16} color="#F3F6F9" />
+                            <Text className="text-text-primary text-body-sm font-semibold font-sans">
+                                Continue with Google
+                            </Text>
+                        </>
+                    )}
                 </Pressable>
 
                 <View className="flex-row justify-center flex-wrap gap-x-1.5 mt-6">
@@ -215,7 +262,7 @@ export default function LoginScreen() {
                         Don&apos;t have an account?
                     </Text>
                     <Pressable
-                    // onPress={handleCreateAccount}
+                        onPress={() => router.push("/SignUp")}
                     >
                         <Text className="text-primary text-caption font-semibold font-sans">
                             Create one
