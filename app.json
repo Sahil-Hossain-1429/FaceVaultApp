@@ -9,7 +9,10 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon",
-      "bundleIdentifier": "com.sahilh.FaceVaultApp"
+      "bundleIdentifier": "com.sahilh.FaceVaultApp",
+      "infoPlist": {
+        "NSCameraUsageDescription": "FaceVault needs your camera for facial recognition."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -20,6 +23,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
+        "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO",
         "android.permission.USE_BIOMETRIC",
         "android.permission.USE_FINGERPRINT"
@@ -31,13 +35,14 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      "expo-dev-client",
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "backgroundColor": "#0E172A",
+          "image": "./assets/images/appLogo.png",
+          "imageWidth": 200
         }
       ],
       [
@@ -47,16 +52,11 @@
           "cameraPermission": "FaceVault needs camera access so you can capture and store new photos securely."
         }
       ],
-      [
-        "expo-local-authentication",
-        {
-          "faceIDPermission": "Allow FaceVault to use Face ID to unlock your vault."
-        }
-      ],
       "expo-secure-store",
       "expo-image",
       "@clerk/expo",
-      "expo-web-browser"
+      "expo-web-browser",
+      "./app.plugin.js"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -265,7 +265,7 @@ export default function LoginScreen() {
                         onPress={() => router.push("/SignUp")}
                     >
                         <Text className="text-primary text-caption font-semibold font-sans">
-                            Create one
+                            Create an Account
                         </Text>
                     </Pressable>
                 </View>
