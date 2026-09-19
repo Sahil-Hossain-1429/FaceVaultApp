@@ -24,9 +24,9 @@
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO",
-        "android.permission.USE_BIOMETRIC",
-        "android.permission.USE_FINGERPRINT"
+        "android.permission.RECORD_AUDIO"
+        // "android.permission.USE_BIOMETRIC",
+        // "android.permission.USE_FINGERPRINT"
       ],
       "package": "com.sahilh.FaceVaultApp"
     },
@@ -55,8 +55,7 @@
       "expo-secure-store",
       "expo-image",
       "@clerk/expo",
-      "expo-web-browser",
-      "./app.plugin.js"
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -1,6 +1,6 @@
 import "@/global.css";
 import { ensureVaultDir } from "@/lib/fileStorage";
-import { clearEnrollment } from "@/services/faceEnrollment";
+// import { clearEnrollment } from "@/services/faceEnrollment";
 import { ClerkProvider } from '@clerk/expo';
 import { tokenCache } from '@clerk/expo/token-cache';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
@@ -25,7 +25,7 @@ async function migrateIfNeeded(): Promise<void> {
   if (stored === CURRENT_MODEL_VERSION) return;
 
   console.log('[migration] model version mismatch — clearing old enrollment');
-  await clearEnrollment();
+  // await clearEnrollment();
   await SecureStore.setItemAsync(MIGRATION_KEY, CURRENT_MODEL_VERSION);
   console.log('[migration] done — user will re-enroll on next vault open');
 }
