@@ -3,6 +3,7 @@ import { useCameraDevice, useCameraPermission } from 'react-native-vision-camera
 import type { Face as MLKitFace } from 'react-native-vision-camera-face-detector';
 import {
     DetectedFace,
+    DetectedFaceLandmarks,
     FaceDetectionError,
     FaceDetectionState,
     INITIAL_FACE_DETECTION_STATE,
@@ -10,10 +11,13 @@ import {
 } from '../types';
 
 // ─── ML Kit Options ──────────────────────────────────────────────────────────
+// runLandmarks: true — required for Phase 2 eye-landmark alignment.
+// Euler angles (pitch/roll/yaw) are always returned regardless of this flag.
+// runContours / runClassifications remain off to keep performance acceptable.
 const DETECTOR_OPTIONS = {
     performanceMode: 'fast',
     trackingEnabled: true,
-    runLandmarks: false,
+    runLandmarks: true,       // <-- changed from false; needed for alignment
     runContours: false,
     runClassifications: false,
     minFaceSize: 0.15,
@@ -25,6 +29,24 @@ const STATE_UPDATE_THROTTLE_MS = 200;
 
 // ─── Mapper ──────────────────────────────────────────────────────────────────
 function mapMLKitFace(face: MLKitFace): DetectedFace {
+    // Map landmarks — each is a Point {x, y} or undefined.
+    let landmarks: DetectedFaceLandmarks | null = null;
+    if (face.landmarks) {
+        const l = face.landmarks;
+        landmarks = {
+            LEFT_EYE: l.LEFT_EYE ? { x: l.LEFT_EYE.x, y: l.LEFT_EYE.y } : undefined,
+            RIGHT_EYE: l.RIGHT_EYE ? { x: l.RIGHT_EYE.x, y: l.RIGHT_EYE.y } : undefined,
+            NOSE_BASE: l.NOSE_BASE ? { x: l.NOSE_BASE.x, y: l.NOSE_BASE.y } : undefined,
+            MOUTH_LEFT: l.MOUTH_LEFT ? { x: l.MOUTH_LEFT.x, y: l.MOUTH_LEFT.y } : undefined,
+            MOUTH_RIGHT: l.MOUTH_RIGHT ? { x: l.MOUTH_RIGHT.x, y: l.MOUTH_RIGHT.y } : undefined,
+            MOUTH_BOTTOM: l.MOUTH_BOTTOM ? { x: l.MOUTH_BOTTOM.x, y: l.MOUTH_BOTTOM.y } : undefined,
+            LEFT_EAR: l.LEFT_EAR ? { x: l.LEFT_EAR.x, y: l.LEFT_EAR.y } : undefined,
+            RIGHT_EAR: l.RIGHT_EAR ? { x: l.RIGHT_EAR.x, y: l.RIGHT_EAR.y } : undefined,
+            LEFT_CHEEK: l.LEFT_CHEEK ? { x: l.LEFT_CHEEK.x, y: l.LEFT_CHEEK.y } : undefined,
+            RIGHT_CHEEK: l.RIGHT_CHEEK ? { x: l.RIGHT_CHEEK.x, y: l.RIGHT_CHEEK.y } : undefined,
+        };
+    }
+
     return {
         trackingId: face.trackingId ?? null,
         bounds: {
@@ -33,9 +55,14 @@ function mapMLKitFace(face: MLKitFace): DetectedFace {
             width: face.bounds.width,
             height: face.bounds.height,
         },
-        rollAngle: face.rollAngle ?? null,
-        pitchAngle: face.pitchAngle ?? null,
-        yawAngle: face.yawAngle ?? null,
+        // Euler angles are non-optional on Face in v2.1.0.
+        rollAngle: face.rollAngle,
+        pitchAngle: face.pitchAngle,
+        yawAngle: face.yawAngle,
+        landmarks,
+        // Frame dimensions are provided directly on the Face object.
+        frameWidth: face.frameWidth,
+        frameHeight: face.frameHeight,
     };
 }
 
