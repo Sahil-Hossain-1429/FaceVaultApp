@@ -4,12 +4,8 @@ import { StyleSheet, View } from 'react-native';
 export default function Home() {
     return (
         <View style={styles.container}>
-            {/* <Link href="/onboarding">Get Started Screen</Link> */}
-            {/* <Link href="/face-test">Face Test</Link> */}
-            {/* <Link href="/face-detection-dev">Face-Detection-dev</Link> */}
-            <Link href="/face-enrollment-dev">Face-enrollment-dev</Link>
-            {/* <Link href="/FaceRecognitionSetup">FaceRecognition Screen</Link> */}
-            {/* <Link href="/lock">Lock Screen</Link> */}
+            <Link href="/onboarding">Get Started Screen</Link>
+            <Link href="/face-enrollment-dev">Face-enrollment-dev</Link>            
         </View>
     );
 }
@@ -19,5 +15,6 @@ const styles = StyleSheet.create({
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
+        gap: 20,
     },
 });

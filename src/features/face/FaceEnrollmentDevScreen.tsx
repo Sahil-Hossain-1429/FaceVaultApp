@@ -1,5 +1,7 @@
-import { useCallback, useState } from 'react';
+import { useAuth } from '@clerk/expo';
+import { useCallback, useEffect, useState } from 'react';
 import {
+    ActivityIndicator,
     Image,
     Platform,
     SafeAreaView,
@@ -10,12 +12,13 @@ import {
     View,
 } from 'react-native';
 import { Camera } from 'react-native-vision-camera-face-detector';
+import { testSupabaseAuth } from '../../lib/supabase';
 import { useFaceCamera } from './camera/useFaceCamera';
 import { useFaceCapture } from './capture/useFaceCapture';
 import { useFaceDetection } from './detection/useFaceDetection';
+import { saveEnrollmentTemplate } from './enrollment/enrollmentRepository';
+import { buildEnrollmentTemplate, warmUpEmbeddingModel } from './enrollment/enrollmentService';
 import type { FaceDetectionState } from './types';
-
-// ─── Status label maps ────────────────────────────────────────────────────────
 
 const QUALITY_LABELS: Record<string, string> = {
     'good': '✓ Quality OK',
@@ -50,9 +53,13 @@ const CAPTURE_STATUS_COLORS: Record<string, string> = {
     'error': '#FF6B6B',
 };
 
-// ─── Component ────────────────────────────────────────────────────────────────
+type EmbeddingPhase = 'idle' | 'embedding' | 'saving' | 'done' | 'error';
 
 export function FaceEnrollmentDevScreen() {
+    // ── Auth ──────────────────────────────────────────────────────────────────
+    const { userId, getToken } = useAuth();
+
+    // ── Camera / capture ──────────────────────────────────────────────────────
     const faceCamera = useFaceCamera();
     const { enrollmentState, photoOutput, onDetectionState, reset } = useFaceCapture();
 
@@ -63,7 +70,70 @@ export function FaceEnrollmentDevScreen() {
         error: null,
     });
 
-    // Wire detection state into both the UI and the capture pipeline.
+    // ── Phase 3 state ─────────────────────────────────────────────────────────
+    const [embeddingPhase, setEmbeddingPhase] = useState<EmbeddingPhase>('idle');
+    const [embeddingError, setEmbeddingError] = useState<string | null>(null);
+    const [frameCount, setFrameCount] = useState<number | null>(null);
+
+    // ── On mount: test Supabase + warm up model ───────────────────────────────
+    useEffect(() => {
+        const init = async () => {
+            const token = await getToken({ template: 'supabase' });
+            console.log('[DevScreen] Clerk token on mount:', token ? `${token.slice(0, 20)}...` : 'NULL');
+            await testSupabaseAuth(token ?? undefined);
+            warmUpEmbeddingModel().catch(e =>
+                console.warn('[DevScreen] Model warm-up failed:', e),
+            );
+        };
+        init();
+    }, []);
+
+    // ── Phase 3: trigger when capture completes ───────────────────────────────
+    useEffect(() => {
+        console.log('[DevScreen] captureStatus:', enrollmentState.captureStatus);
+        console.log('[DevScreen] alignedFaces count:', enrollmentState.alignedFaces.length);
+        console.log('[DevScreen] embeddingPhase:', embeddingPhase);
+        console.log('[DevScreen] userId:', userId);
+
+        if (enrollmentState.captureStatus !== 'complete') return;
+        if (embeddingPhase !== 'idle') return;
+        if (!userId) {
+            console.warn('[DevScreen] No userId — Clerk not ready or user not signed in');
+            return;
+        }
+
+        console.log('[DevScreen] ✓ All conditions met, starting Phase 3');
+
+        const run = async () => {
+            try {
+                // Fetch fresh Clerk token
+                const token = await getToken({ template: 'supabase' });
+                console.log('[DevScreen] Clerk token for save:', token ? `${token.slice(0, 20)}...` : 'NULL');
+
+                if (!token) {
+                    throw new Error('Clerk token is null — is the user signed in?');
+                }
+
+                setEmbeddingPhase('embedding');
+                const template = await buildEnrollmentTemplate(enrollmentState.alignedFaces);
+                setFrameCount(template.frameCount);
+
+                setEmbeddingPhase('saving');
+                await saveEnrollmentTemplate(userId, token, template);
+
+                setEmbeddingPhase('done');
+            } catch (e) {
+                const msg = e instanceof Error ? e.message : 'Unknown error';
+                console.error('[DevScreen] Phase 3 error:', e);
+                setEmbeddingError(msg);
+                setEmbeddingPhase('error');
+            }
+        };
+
+        run();
+    }, [enrollmentState.captureStatus, embeddingPhase, userId, enrollmentState.alignedFaces]);
+
+    // ── Detection handler ─────────────────────────────────────────────────────
     const handleDetectionStateChange = useCallback(
         (nextState: FaceDetectionState) => {
             setDetectionState(nextState);
@@ -74,7 +144,14 @@ export function FaceEnrollmentDevScreen() {
 
     const { cameraProps, device } = useFaceDetection(handleDetectionStateChange);
 
-    // ── Permission: undetermined ──────────────────────────────────────────────
+    const handleReset = useCallback(() => {
+        reset();
+        setEmbeddingPhase('idle');
+        setEmbeddingError(null);
+        setFrameCount(null);
+    }, [reset]);
+
+    // ── Permission gates ──────────────────────────────────────────────────────
     if (faceCamera.permissionStatus === 'undetermined') {
         return (
             <SafeAreaView style={styles.centered}>
@@ -88,7 +165,6 @@ export function FaceEnrollmentDevScreen() {
         );
     }
 
-    // ── Permission: denied ────────────────────────────────────────────────────
     if (faceCamera.permissionStatus === 'denied') {
         return (
             <SafeAreaView style={styles.centered}>
@@ -100,18 +176,14 @@ export function FaceEnrollmentDevScreen() {
         );
     }
 
-    // ── No front camera ───────────────────────────────────────────────────────
     if (!faceCamera.hasFrontCamera || !device) {
         return (
             <SafeAreaView style={styles.centered}>
-                <Text style={styles.message}>
-                    No front-facing camera found on this device.
-                </Text>
+                <Text style={styles.message}>No front-facing camera found.</Text>
             </SafeAreaView>
         );
     }
 
-    // ── Initializing ──────────────────────────────────────────────────────────
     if (detectionState.isInitializing) {
         return (
             <SafeAreaView style={styles.centered}>
@@ -120,7 +192,6 @@ export function FaceEnrollmentDevScreen() {
         );
     }
 
-    // ── Detection error ───────────────────────────────────────────────────────
     if (detectionState.error) {
         return (
             <SafeAreaView style={styles.centered}>
@@ -130,7 +201,7 @@ export function FaceEnrollmentDevScreen() {
         );
     }
 
-    // ── Complete — show aligned faces ─────────────────────────────────────────
+    // ── Complete screen ───────────────────────────────────────────────────────
     if (enrollmentState.captureStatus === 'complete') {
         return (
             <SafeAreaView style={styles.centered}>
@@ -138,6 +209,7 @@ export function FaceEnrollmentDevScreen() {
                 <Text style={styles.completeSubtitle}>
                     {enrollmentState.alignedFaces.length} aligned frames
                 </Text>
+
                 <ScrollView
                     horizontal
                     style={styles.alignedRow}
@@ -156,20 +228,48 @@ export function FaceEnrollmentDevScreen() {
                         </View>
                     ))}
                 </ScrollView>
-                <TouchableOpacity style={styles.button} onPress={reset}>
+
+                <View style={styles.phase3Box}>
+                    {embeddingPhase === 'idle' && (
+                        <ActivityIndicator color="#888" />
+                    )}
+                    {embeddingPhase === 'embedding' && (
+                        <>
+                            <ActivityIndicator color="#74C0FC" style={{ marginBottom: 8 }} />
+                            <Text style={styles.phase3Text}>Running ArcFace inference…</Text>
+                        </>
+                    )}
+                    {embeddingPhase === 'saving' && (
+                        <>
+                            <ActivityIndicator color="#FF922B" style={{ marginBottom: 8 }} />
+                            <Text style={styles.phase3Text}>Saving template to Supabase…</Text>
+                        </>
+                    )}
+                    {embeddingPhase === 'done' && (
+                        <Text style={[styles.phase3Text, { color: '#51CF66' }]}>
+                            ✓ Enrolled — {frameCount} frame{frameCount !== 1 ? 's' : ''} averaged
+                        </Text>
+                    )}
+                    {embeddingPhase === 'error' && (
+                        <Text style={[styles.phase3Text, { color: '#FF6B6B' }]}>
+                            ✗ {embeddingError}
+                        </Text>
+                    )}
+                </View>
+
+                <TouchableOpacity style={styles.button} onPress={handleReset}>
                     <Text style={styles.buttonText}>Try Again</Text>
                 </TouchableOpacity>
             </SafeAreaView>
         );
     }
 
-    // ── Camera live ───────────────────────────────────────────────────────────
+    // ── Live camera ───────────────────────────────────────────────────────────
     const { qualityResult, positionResult, captureStatus } = enrollmentState;
     const statusColor = CAPTURE_STATUS_COLORS[captureStatus] ?? '#888';
 
     return (
         <View style={styles.container}>
-            {/* Camera preview — fills the screen */}
             <Camera
                 style={StyleSheet.absoluteFill}
                 device={device}
@@ -186,26 +286,17 @@ export function FaceEnrollmentDevScreen() {
                 cameraFacing={cameraProps.cameraFacing}
             />
 
-            {/* Overlay — status badge at the bottom */}
             <SafeAreaView style={styles.overlay} pointerEvents="none">
                 <View style={[styles.badge, { borderColor: statusColor }]}>
-
-                    {/* Capture pipeline status */}
                     <Text style={[styles.statusText, { color: statusColor }]}>
                         {CAPTURE_STATUS_LABELS[captureStatus] ?? captureStatus}
                     </Text>
-
-                    {/* Progress */}
                     <Text style={styles.debug}>
                         Captured: {enrollmentState.capturedFrames.length} / {enrollmentState.targetFrameCount}
                     </Text>
-
-                    {/* Stability bar */}
                     <Text style={styles.debug}>
                         Stability: {enrollmentState.stableFrameCount} / {enrollmentState.stableFrameTarget}
                     </Text>
-
-                    {/* Quality */}
                     {qualityResult && (
                         <Text style={[
                             styles.debug,
@@ -214,8 +305,6 @@ export function FaceEnrollmentDevScreen() {
                             Quality: {QUALITY_LABELS[qualityResult.status] ?? qualityResult.status}
                         </Text>
                     )}
-
-                    {/* Position */}
                     {positionResult && (
                         <Text style={[
                             styles.debug,
@@ -224,14 +313,10 @@ export function FaceEnrollmentDevScreen() {
                             Position: {POSITION_LABELS[positionResult.status] ?? positionResult.status}
                         </Text>
                     )}
-
-                    {/* Raw face count */}
                     <Text style={styles.debug}>
                         Faces: {detectionState.faces.length}{'  '}
                         Status: {detectionState.status}
                     </Text>
-
-                    {/* Euler angles when one face present */}
                     {detectionState.faces.length === 1 && (
                         <Text style={styles.debug}>
                             yaw={detectionState.faces[0].yawAngle?.toFixed(1)}°{'  '}
@@ -239,8 +324,6 @@ export function FaceEnrollmentDevScreen() {
                             roll={detectionState.faces[0].rollAngle?.toFixed(1)}°
                         </Text>
                     )}
-
-                    {/* Error */}
                     {enrollmentState.error && (
                         <Text style={[styles.debug, { color: '#FF6B6B' }]}>
                             {enrollmentState.error}
@@ -252,13 +335,8 @@ export function FaceEnrollmentDevScreen() {
     );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#000',
-    },
+    container: { flex: 1, backgroundColor: '#000' },
     centered: {
         flex: 1,
         backgroundColor: '#0E172A',
@@ -283,73 +361,39 @@ const styles = StyleSheet.create({
         marginBottom: 16,
         gap: 4,
     },
-    statusText: {
-        fontSize: 18,
-        fontWeight: '700',
-        marginBottom: 4,
-    },
+    statusText: { fontSize: 18, fontWeight: '700', marginBottom: 4 },
     debug: {
         fontSize: 11,
         color: '#aaa',
         fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     },
-    message: {
-        color: '#fff',
-        fontSize: 16,
-        textAlign: 'center',
-        lineHeight: 24,
-        marginBottom: 24,
-    },
+    message: { color: '#fff', fontSize: 16, textAlign: 'center', lineHeight: 24, marginBottom: 24 },
     errorCode: {
         color: '#FF6B6B',
         fontSize: 13,
         fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
         marginBottom: 8,
     },
-    button: {
-        backgroundColor: '#4A90D9',
-        paddingHorizontal: 28,
-        paddingVertical: 14,
-        borderRadius: 10,
-    },
-    buttonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    completeTitle: {
-        color: '#51CF66',
-        fontSize: 24,
-        fontWeight: '700',
-        marginBottom: 8,
-    },
-    completeSubtitle: {
-        color: '#aaa',
-        fontSize: 14,
-        marginBottom: 24,
-    },
-    alignedRow: {
-        maxHeight: 180,
-        marginBottom: 32,
-    },
-    alignedRowContent: {
-        gap: 12,
-        paddingHorizontal: 8,
-    },
-    alignedFrame: {
-        alignItems: 'center',
-        gap: 4,
-    },
-    alignedImage: {
-        width: 112,
-        height: 112,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: '#444',
-    },
+    button: { backgroundColor: '#4A90D9', paddingHorizontal: 28, paddingVertical: 14, borderRadius: 10 },
+    buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+    completeTitle: { color: '#51CF66', fontSize: 24, fontWeight: '700', marginBottom: 8 },
+    completeSubtitle: { color: '#aaa', fontSize: 14, marginBottom: 24 },
+    alignedRow: { maxHeight: 180, marginBottom: 16 },
+    alignedRowContent: { gap: 12, paddingHorizontal: 8 },
+    alignedFrame: { alignItems: 'center', gap: 4 },
+    alignedImage: { width: 112, height: 112, borderRadius: 8, borderWidth: 1, borderColor: '#444' },
     alignedLabel: {
         color: '#888',
         fontSize: 10,
         fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     },
+    phase3Box: {
+        alignItems: 'center',
+        paddingVertical: 16,
+        paddingHorizontal: 24,
+        marginBottom: 24,
+        minHeight: 60,
+        justifyContent: 'center',
+    },
+    phase3Text: { color: '#ccc', fontSize: 14, textAlign: 'center' },
 });

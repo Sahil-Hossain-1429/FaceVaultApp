@@ -23,5 +23,6 @@ config.resolver = {
 // -----------------------------
 
 config.resolver.assetExts.push("onnx");
+config.resolver.assetExts.push("tflite");  // ← Phase 3: TFLite model
 
 module.exports = withNativeWind(config);

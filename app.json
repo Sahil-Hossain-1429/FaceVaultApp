@@ -37,6 +37,7 @@
     "plugins": [
       "expo-dev-client",
       "expo-router",
+      "react-native-fast-tflite",   
       [
         "expo-splash-screen",
         {
