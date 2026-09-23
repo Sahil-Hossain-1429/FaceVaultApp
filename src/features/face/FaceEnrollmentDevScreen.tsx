@@ -1,5 +1,6 @@
 import { useAuth } from '@clerk/expo';
-import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Image,
@@ -53,15 +54,19 @@ const CAPTURE_STATUS_COLORS: Record<string, string> = {
     'error': '#FF6B6B',
 };
 
+const DUMMY_CAPTURE_TARGET = 5;
+
 type EmbeddingPhase = 'idle' | 'embedding' | 'saving' | 'done' | 'error';
 
 export function FaceEnrollmentDevScreen() {
     // ── Auth ──────────────────────────────────────────────────────────────────
     const { userId, getToken } = useAuth();
+    const router = useRouter();
 
     // ── Camera / capture ──────────────────────────────────────────────────────
     const faceCamera = useFaceCamera();
     const { enrollmentState, photoOutput, onDetectionState, reset } = useFaceCapture();
+    const outputs = useMemo(() => [photoOutput], [photoOutput]);
 
     const [detectionState, setDetectionState] = useState<FaceDetectionState>({
         status: 'no-face',
@@ -69,6 +74,28 @@ export function FaceEnrollmentDevScreen() {
         isInitializing: true,
         error: null,
     });
+
+    // ── Dummy capture count ───────────────────────────────────────────────────
+    // Increments by 1 each time stability reaches stableFrameTarget (5/5).
+    // Resets when the real capture resets.
+    const [dummyCaptureCount, setDummyCaptureCount] = useState(0);
+    const prevStableCount = useRef(0);
+    const prevWasAtTarget = useRef(false);
+
+    useEffect(() => {
+        const { stableFrameCount, stableFrameTarget } = enrollmentState;
+        const isAtTarget = stableFrameCount >= stableFrameTarget && stableFrameTarget > 0;
+
+        // Rising edge: stability just reached the target
+        if (isAtTarget && !prevWasAtTarget.current) {
+            setDummyCaptureCount(prev => Math.min(prev + 1, DUMMY_CAPTURE_TARGET));
+        }
+
+        prevWasAtTarget.current = isAtTarget;
+        prevStableCount.current = stableFrameCount;
+    }, [enrollmentState.stableFrameCount, enrollmentState.stableFrameTarget]);
+
+    const enrollmentSuccess = dummyCaptureCount >= DUMMY_CAPTURE_TARGET;
 
     // ── Phase 3 state ─────────────────────────────────────────────────────────
     const [embeddingPhase, setEmbeddingPhase] = useState<EmbeddingPhase>('idle');
@@ -81,9 +108,11 @@ export function FaceEnrollmentDevScreen() {
             const token = await getToken({ template: 'supabase' });
             console.log('[DevScreen] Clerk token on mount:', token ? `${token.slice(0, 20)}...` : 'NULL');
             await testSupabaseAuth(token ?? undefined);
-            warmUpEmbeddingModel().catch(e =>
-                console.warn('[DevScreen] Model warm-up failed:', e),
-            );
+            setTimeout(() => {
+                warmUpEmbeddingModel().catch(e =>
+                    console.warn('[DevScreen] Model warm-up failed:', e),
+                );
+            }, 2000);
         };
         init();
     }, []);
@@ -106,7 +135,6 @@ export function FaceEnrollmentDevScreen() {
 
         const run = async () => {
             try {
-                // Fetch fresh Clerk token
                 const token = await getToken({ template: 'supabase' });
                 console.log('[DevScreen] Clerk token for save:', token ? `${token.slice(0, 20)}...` : 'NULL');
 
@@ -149,7 +177,14 @@ export function FaceEnrollmentDevScreen() {
         setEmbeddingPhase('idle');
         setEmbeddingError(null);
         setFrameCount(null);
+        setDummyCaptureCount(0);
+        prevWasAtTarget.current = false;
+        prevStableCount.current = 0;
     }, [reset]);
+
+    const handleContinue = useCallback(() => {
+        router.replace('/(tabs)');
+    }, [router]);
 
     // ── Permission gates ──────────────────────────────────────────────────────
     if (faceCamera.permissionStatus === 'undetermined') {
@@ -271,10 +306,10 @@ export function FaceEnrollmentDevScreen() {
     return (
         <View style={styles.container}>
             <Camera
+                outputs={outputs}
                 style={StyleSheet.absoluteFill}
                 device={device}
                 isActive={true}
-                outputs={[photoOutput]}
                 onFacesDetected={cameraProps.onFacesDetected}
                 onError={cameraProps.onError}
                 performanceMode={cameraProps.performanceMode}
@@ -286,50 +321,75 @@ export function FaceEnrollmentDevScreen() {
                 cameraFacing={cameraProps.cameraFacing}
             />
 
-            <SafeAreaView style={styles.overlay} pointerEvents="none">
-                <View style={[styles.badge, { borderColor: statusColor }]}>
-                    <Text style={[styles.statusText, { color: statusColor }]}>
-                        {CAPTURE_STATUS_LABELS[captureStatus] ?? captureStatus}
-                    </Text>
-                    <Text style={styles.debug}>
-                        Captured: {enrollmentState.capturedFrames.length} / {enrollmentState.targetFrameCount}
-                    </Text>
-                    <Text style={styles.debug}>
-                        Stability: {enrollmentState.stableFrameCount} / {enrollmentState.stableFrameTarget}
-                    </Text>
-                    {qualityResult && (
-                        <Text style={[
-                            styles.debug,
-                            { color: qualityResult.status === 'good' ? '#51CF66' : '#FFD43B' },
-                        ]}>
-                            Quality: {QUALITY_LABELS[qualityResult.status] ?? qualityResult.status}
-                        </Text>
-                    )}
-                    {positionResult && (
-                        <Text style={[
-                            styles.debug,
-                            { color: positionResult.status === 'centered' ? '#51CF66' : '#FFD43B' },
-                        ]}>
-                            Position: {POSITION_LABELS[positionResult.status] ?? positionResult.status}
-                        </Text>
-                    )}
-                    <Text style={styles.debug}>
-                        Faces: {detectionState.faces.length}{'  '}
-                        Status: {detectionState.status}
-                    </Text>
-                    {detectionState.faces.length === 1 && (
-                        <Text style={styles.debug}>
-                            yaw={detectionState.faces[0].yawAngle?.toFixed(1)}°{'  '}
-                            pitch={detectionState.faces[0].pitchAngle?.toFixed(1)}°{'  '}
-                            roll={detectionState.faces[0].rollAngle?.toFixed(1)}°
-                        </Text>
-                    )}
-                    {enrollmentState.error && (
-                        <Text style={[styles.debug, { color: '#FF6B6B' }]}>
-                            {enrollmentState.error}
-                        </Text>
+            <SafeAreaView style={styles.overlay} pointerEvents="box-none">
+                {/* Status / capture badge */}
+                <View style={[styles.badge, { borderColor: enrollmentSuccess ? '#51CF66' : statusColor }]}>
+                    {enrollmentSuccess ? (
+                        <Text style={styles.successText}>Face Enrollment successful</Text>
+                    ) : (
+                        <>
+                            <Text style={[styles.statusText, { color: statusColor }]}>
+                                {CAPTURE_STATUS_LABELS[captureStatus] ?? captureStatus}
+                            </Text>
+                            <Text style={styles.debug}>
+                                Captured: {dummyCaptureCount} / {DUMMY_CAPTURE_TARGET}
+                            </Text>
+                            <Text style={styles.debug}>
+                                Stability: {enrollmentState.stableFrameCount} / {enrollmentState.stableFrameTarget}
+                            </Text>
+                            {qualityResult && (
+                                <Text style={[
+                                    styles.debug,
+                                    { color: qualityResult.status === 'good' ? '#51CF66' : '#FFD43B' },
+                                ]}>
+                                    Quality: {QUALITY_LABELS[qualityResult.status] ?? qualityResult.status}
+                                </Text>
+                            )}
+                            {positionResult && (
+                                <Text style={[
+                                    styles.debug,
+                                    { color: positionResult.status === 'centered' ? '#51CF66' : '#FFD43B' },
+                                ]}>
+                                    Position: {POSITION_LABELS[positionResult.status] ?? positionResult.status}
+                                </Text>
+                            )}
+                            <Text style={styles.debug}>
+                                Faces: {detectionState.faces.length}{'  '}
+                                Status: {detectionState.status}
+                            </Text>
+                            {detectionState.faces.length === 1 && (
+                                <Text style={styles.debug}>
+                                    yaw={detectionState.faces[0].yawAngle?.toFixed(1)}°{'  '}
+                                    pitch={detectionState.faces[0].pitchAngle?.toFixed(1)}°{'  '}
+                                    roll={detectionState.faces[0].rollAngle?.toFixed(1)}°
+                                </Text>
+                            )}
+                            {enrollmentState.error && (
+                                <Text style={[styles.debug, { color: '#FF6B6B' }]}>
+                                    {enrollmentState.error}
+                                </Text>
+                            )}
+                        </>
                     )}
                 </View>
+
+                {/* Continue button */}
+                <TouchableOpacity
+                    style={[
+                        styles.continueButton,
+                        !enrollmentSuccess && styles.continueButtonDisabled,
+                    ]}
+                    onPress={handleContinue}
+                    disabled={!enrollmentSuccess}
+                    activeOpacity={0.8}
+                >
+                    <Text style={[
+                        styles.continueButtonText,
+                        !enrollmentSuccess && styles.continueButtonTextDisabled,
+                    ]}>
+                        Continue
+                    </Text>
+                </TouchableOpacity>
             </SafeAreaView>
         </View>
     );
@@ -358,10 +418,16 @@ const styles = StyleSheet.create({
         paddingVertical: 14,
         alignItems: 'center',
         minWidth: 280,
-        marginBottom: 16,
+        marginBottom: 12,
         gap: 4,
     },
     statusText: { fontSize: 18, fontWeight: '700', marginBottom: 4 },
+    successText: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#51CF66',
+        textAlign: 'center',
+    },
     debug: {
         fontSize: 11,
         color: '#aaa',
@@ -376,6 +442,26 @@ const styles = StyleSheet.create({
     },
     button: { backgroundColor: '#4A90D9', paddingHorizontal: 28, paddingVertical: 14, borderRadius: 10 },
     buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+    continueButton: {
+        backgroundColor: '#4A90D9',
+        paddingHorizontal: 28,
+        paddingVertical: 14,
+        borderRadius: 10,
+        marginBottom: 8,
+        minWidth: 280,
+        alignItems: 'center',
+    },
+    continueButtonDisabled: {
+        backgroundColor: '#2A3A4A',
+    },
+    continueButtonText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    continueButtonTextDisabled: {
+        color: '#556070',
+    },
     completeTitle: { color: '#51CF66', fontSize: 24, fontWeight: '700', marginBottom: 8 },
     completeSubtitle: { color: '#aaa', fontSize: 14, marginBottom: 24 },
     alignedRow: { maxHeight: 180, marginBottom: 16 },

@@ -1,6 +1,5 @@
 import "@/global.css";
 import { ensureVaultDir } from "@/lib/fileStorage";
-// import { clearEnrollment } from "@/services/faceEnrollment";
 import { ClerkProvider } from '@clerk/expo';
 import { tokenCache } from '@clerk/expo/token-cache';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
@@ -15,8 +14,6 @@ if (!publishableKey) {
   throw new Error('Add your Clerk Publishable Key to the .env file');
 }
 
-// Bump this string any time the embedding model changes.
-// A mismatch wipes the old enrollment and forces re-enrollment.
 const CURRENT_MODEL_VERSION = 'sface_v1';
 const MIGRATION_KEY = 'face_vault_model_version';
 
@@ -25,7 +22,6 @@ async function migrateIfNeeded(): Promise<void> {
   if (stored === CURRENT_MODEL_VERSION) return;
 
   console.log('[migration] model version mismatch — clearing old enrollment');
-  // await clearEnrollment();
   await SecureStore.setItemAsync(MIGRATION_KEY, CURRENT_MODEL_VERSION);
   console.log('[migration] done — user will re-enroll on next vault open');
 }
@@ -41,6 +37,7 @@ export default function RootLayout() {
       <GestureHandlerRootView style={{ flex: 1 }}>
         <BottomSheetModalProvider>
           <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(auth)" />
             <Stack.Screen name="(tabs)" />
           </Stack>
         </BottomSheetModalProvider>

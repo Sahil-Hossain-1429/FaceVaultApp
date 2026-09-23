@@ -17,8 +17,10 @@ import type { EnrollmentTemplate } from './enrollmentService';
  */
 export async function saveEnrollmentTemplate(
     userId: string,
+    clerkToken: string, 
     template: EnrollmentTemplate,
 ): Promise<void> {
+    const client = createAuthenticatedClient(clerkToken);
     const embeddingArray = Array.from(template.embedding);
 
     console.log(`[Repository] Saving template for user ${userId}, embedding length: ${embeddingArray.length}`);

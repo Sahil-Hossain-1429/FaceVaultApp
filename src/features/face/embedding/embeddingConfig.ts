@@ -6,7 +6,6 @@ export const EMBEDDING_CONFIG = {
      * metro.config.js must include 'tflite' in resolver.assetExts.
      */
     MODEL_ASSET_PATH: require('../../../../assets/models/w600k_r50_float32.tflite'),
-
     /**
      * Expected input dimensions for the ArcFace w600k_r50 model.
      * Shape: [1, 3, 112, 112] — NCHW, float32.

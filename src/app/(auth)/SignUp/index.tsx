@@ -60,8 +60,7 @@ export default function CreateAccountScreen() {
                         console.log(session.currentTask);
                         return;
                     }
-                    // router.replace("/FaceRecognitionSetup");
-                    // Todo Need to update the location with Gated Navigation
+                    router.replace("/face-enrollment-dev");
                 },
             });
         } else {

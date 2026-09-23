@@ -11,7 +11,8 @@
       "icon": "./assets/expo.icon",
       "bundleIdentifier": "com.sahilh.FaceVaultApp",
       "infoPlist": {
-        "NSCameraUsageDescription": "FaceVault needs your camera for facial recognition."
+        "NSCameraUsageDescription": "FaceVault needs your camera for facial recognition.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -25,8 +26,6 @@
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
-        // "android.permission.USE_BIOMETRIC",
-        // "android.permission.USE_FINGERPRINT"
       ],
       "package": "com.sahilh.FaceVaultApp"
     },
@@ -37,7 +36,7 @@
     "plugins": [
       "expo-dev-client",
       "expo-router",
-      "react-native-fast-tflite",   
+      "react-native-fast-tflite",
       [
         "expo-splash-screen",
         {

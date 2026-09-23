@@ -1,8 +1,8 @@
 # Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
-assets/models/
-
 appNavigationGuide.md
+
+assets/models
 
 .env
 
@@ -47,4 +47,3 @@ example
 # generated native folders
 /ios
 /android
-assets/models/*.onnx

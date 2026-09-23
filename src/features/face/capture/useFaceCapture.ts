@@ -19,28 +19,14 @@ import { INITIAL_ENROLLMENT_STATE } from '../types';
 // ─── Configuration ───────────────────────────────────────────────────────────
 
 const CAPTURE_CONFIG = {
-    /**
-     * Consecutive good detections required before a capture fires.
-     * At ~200ms throttle this is approximately 1 second of stability.
-     */
     STABLE_FRAME_TARGET: 5,
-
-    /**
-     * Number of accepted captured frames before enrollment is complete.
-     */
     TARGET_FRAME_COUNT: 5,
-
-    /**
-     * Minimum milliseconds between capture attempts.
-     * Prevents hammering the camera while the pipeline is busy.
-     */
     MIN_CAPTURE_INTERVAL_MS: 1500,
+    /** Block captures for this many ms after mount to let camera session open */
+    CAMERA_WARMUP_MS: 3000,
 } as const;
 
 // ─── Landmark mapper ──────────────────────────────────────────────────────────
-// Maps the face-detector's Face (from useImageFaceDetector) into our
-// domain DetectedFace. Separate from the live-preview path intentionally —
-// the image detector runs on a captured file, not a live frame.
 
 function mapPoint(
     p: { x: number; y: number } | undefined,
@@ -88,37 +74,28 @@ function mapImageFace(
 
 export interface UseFaceCaptureReturn {
     enrollmentState: FaceEnrollmentState;
-    /**
-     * Attach this to <Camera outputs={[photoOutput]} />.
-     * Typed as CameraPhotoOutput so the Camera component accepts it.
-     */
     photoOutput: CameraPhotoOutput;
-    /** Call on every detection state update from useFaceDetection */
     onDetectionState: (state: FaceDetectionState) => void;
-    /** Reset the enrollment session back to idle */
     reset: () => void;
 }
 
 // ─── Hook ────────────────────────────────────────────────────────────────────
 
 export function useFaceCapture(): UseFaceCaptureReturn {
-    // usePhotoOutput returns CameraPhotoOutput — attach it via outputs={[photoOutput]}
     const photoOutput = usePhotoOutput();
-
-    // useImageFaceDetector — runs ML Kit on a captured photo file URI.
-    // runLandmarks: true so we get eye positions for alignment.
     const imageDetector = useImageFaceDetector({ runLandmarks: true });
 
     const [enrollmentState, setEnrollmentState] = useState<FaceEnrollmentState>(
         INITIAL_ENROLLMENT_STATE,
     );
 
-    // Refs — values needed inside async callbacks without triggering re-renders.
     const stableCountRef = useRef(0);
     const capturedFramesRef = useRef<CapturedFaceFrame[]>([]);
     const captureStatusRef = useRef<FaceCaptureStatus>('idle');
     const lastCaptureTimeRef = useRef(0);
     const isCapturingRef = useRef(false);
+    // Time-based warmup: record when the hook mounted
+    const mountTimeRef = useRef(Date.now());
 
     const updateState = useCallback((partial: Partial<FaceEnrollmentState>) => {
         setEnrollmentState(prev => ({ ...prev, ...partial }));
@@ -130,24 +107,18 @@ export function useFaceCapture(): UseFaceCaptureReturn {
         captureStatusRef.current = 'idle';
         lastCaptureTimeRef.current = 0;
         isCapturingRef.current = false;
+        mountTimeRef.current = Date.now(); // reset warmup timer
         setEnrollmentState(INITIAL_ENROLLMENT_STATE);
     }, []);
 
     // ── Photo capture ─────────────────────────────────────────────────────────
-    // Defined before onDetectionState so the ref closure sees the stable version.
     const captureFrame = useCallback(async () => {
+        console.log('[CaptureFrame] Attempting capture...');
         try {
-            // capturePhotoToFile writes directly to a temp file.
-            // Returns { filePath: string } — a filesystem path, not a file:// URI.
             const photoFile = await photoOutput.capturePhotoToFile({}, {});
+            console.log('[CaptureFrame] ✓ Got photo:', photoFile.filePath);
 
-            // expo-image-manipulator and useImageFaceDetector both accept
-            // filesystem paths without a file:// prefix.
             const filePath = photoFile.filePath;
-
-            // Run ML Kit face detection on the saved photo.
-            // This gives us landmark coordinates in photo-space — NOT preview-space.
-            // We pass { uri: filePath } as InputImage.
             const detectedFaces = imageDetector.detectFaces({ uri: filePath });
 
             if (detectedFaces.length !== 1) {
@@ -159,14 +130,11 @@ export function useFaceCapture(): UseFaceCaptureReturn {
 
             const face = mapImageFace(detectedFaces[0]);
 
-            // Reject the frame if eye landmarks are absent — alignment requires them.
             if (!face.landmarks?.LEFT_EYE || !face.landmarks?.RIGHT_EYE) {
                 console.warn('[Capture] Captured photo missing eye landmarks. Discarding.');
                 return;
             }
 
-            // Use frameWidth/frameHeight from the ML Kit result on the photo.
-            // These reflect the actual photo pixel dimensions.
             const frame: CapturedFaceFrame = {
                 id: `frame-${Date.now()}`,
                 uri: filePath,
@@ -179,23 +147,22 @@ export function useFaceCapture(): UseFaceCaptureReturn {
             const capturedCount = capturedFramesRef.current.length;
             const targetReached = capturedCount >= CAPTURE_CONFIG.TARGET_FRAME_COUNT;
 
+            console.log(`[Capture] Frame accepted — ${capturedCount}/${CAPTURE_CONFIG.TARGET_FRAME_COUNT}`);
+
             updateState({
                 capturedFrames: [...capturedFramesRef.current],
                 captureStatus: targetReached ? 'capturing' : 'evaluating',
             });
 
-            // ── Run alignment when we have enough frames ───────────────────────
             if (targetReached) {
                 captureStatusRef.current = 'capturing';
                 updateState({ captureStatus: 'capturing' });
 
                 try {
                     const alignedFaces = await alignAllFrames(capturedFramesRef.current);
+                    console.log(`[Capture] Alignment complete — ${alignedFaces.length} faces`);
                     captureStatusRef.current = 'complete';
-                    updateState({
-                        captureStatus: 'complete',
-                        alignedFaces,
-                    });
+                    updateState({ captureStatus: 'complete', alignedFaces });
                 } catch (e) {
                     const msg = e instanceof Error ? e.message : 'Alignment failed';
                     console.error('[Capture] Alignment error:', e);
@@ -204,12 +171,7 @@ export function useFaceCapture(): UseFaceCaptureReturn {
                 }
             }
         } catch (e) {
-            // A single failed capture is logged and silently dropped.
-            // The stability loop will retry on the next stable window.
-            console.warn(
-                '[Capture] Frame discarded:',
-                e instanceof Error ? e.message : e,
-            );
+            console.warn('[CaptureFrame] Failed:', e instanceof Error ? e.message : e);
         } finally {
             isCapturingRef.current = false;
         }
@@ -218,14 +180,12 @@ export function useFaceCapture(): UseFaceCaptureReturn {
     // ── Main detection handler ────────────────────────────────────────────────
     const onDetectionState = useCallback(
         (detectionState: FaceDetectionState) => {
-            // Ignore updates once finished or while a capture is in flight.
             if (
                 captureStatusRef.current === 'complete' ||
                 captureStatusRef.current === 'error' ||
                 isCapturingRef.current
             ) return;
 
-            // ── Evaluate quality and position ─────────────────────────────────
             const qualityResult = evaluateFaceQuality(detectionState);
             const positionResult = evaluateFacePosition(detectionState);
 
@@ -233,7 +193,6 @@ export function useFaceCapture(): UseFaceCaptureReturn {
             const positionGood = positionResult?.status === 'centered';
             const frameGood = qualityGood && positionGood;
 
-            // ── Stability counter ─────────────────────────────────────────────
             if (frameGood) {
                 stableCountRef.current += 1;
             } else {
@@ -245,7 +204,6 @@ export function useFaceCapture(): UseFaceCaptureReturn {
             const capturedCount = capturedFramesRef.current.length;
             const targetReached = capturedCount >= CAPTURE_CONFIG.TARGET_FRAME_COUNT;
 
-            // ── Derive status ─────────────────────────────────────────────────
             let captureStatus: FaceCaptureStatus;
             if (targetReached) {
                 captureStatus = 'complete';
@@ -271,12 +229,19 @@ export function useFaceCapture(): UseFaceCaptureReturn {
 
             // ── Fire capture when stable and not yet done ─────────────────────
             if (isStable && !targetReached && !isCapturingRef.current) {
+                // Time-based warmup gate — wait for camera session to open
+                const msSinceMount = Date.now() - mountTimeRef.current;
+                if (msSinceMount < CAPTURE_CONFIG.CAMERA_WARMUP_MS) {
+                    console.log(`[Capture] Warming up — ${Math.round(msSinceMount / 100) / 10}s / ${CAPTURE_CONFIG.CAMERA_WARMUP_MS / 1000}s`);
+                    return;
+                }
+
                 const now = Date.now();
                 if (now - lastCaptureTimeRef.current < CAPTURE_CONFIG.MIN_CAPTURE_INTERVAL_MS) {
                     return;
                 }
                 lastCaptureTimeRef.current = now;
-                stableCountRef.current = 0; // reset so we don't fire again immediately
+                stableCountRef.current = 0;
                 isCapturingRef.current = true;
                 captureFrame();
             }

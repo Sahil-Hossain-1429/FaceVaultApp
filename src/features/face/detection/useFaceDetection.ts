@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useCameraDevice, useCameraPermission } from 'react-native-vision-camera';
 import type { Face as MLKitFace } from 'react-native-vision-camera-face-detector';
 import {
@@ -10,26 +10,19 @@ import {
     facesToStatus,
 } from '../types';
 
-// ─── ML Kit Options ──────────────────────────────────────────────────────────
-// runLandmarks: true — required for Phase 2 eye-landmark alignment.
-// Euler angles (pitch/roll/yaw) are always returned regardless of this flag.
-// runContours / runClassifications remain off to keep performance acceptable.
 const DETECTOR_OPTIONS = {
     performanceMode: 'fast',
     trackingEnabled: true,
-    runLandmarks: true,       // <-- changed from false; needed for alignment
+    runLandmarks: true,
     runContours: false,
     runClassifications: false,
     minFaceSize: 0.15,
     cameraFacing: 'front',
 } as const;
 
-// ─── Throttle ────────────────────────────────────────────────────────────────
 const STATE_UPDATE_THROTTLE_MS = 200;
 
-// ─── Mapper ──────────────────────────────────────────────────────────────────
 function mapMLKitFace(face: MLKitFace): DetectedFace {
-    // Map landmarks — each is a Point {x, y} or undefined.
     let landmarks: DetectedFaceLandmarks | null = null;
     if (face.landmarks) {
         const l = face.landmarks;
@@ -46,7 +39,6 @@ function mapMLKitFace(face: MLKitFace): DetectedFace {
             RIGHT_CHEEK: l.RIGHT_CHEEK ? { x: l.RIGHT_CHEEK.x, y: l.RIGHT_CHEEK.y } : undefined,
         };
     }
-
     return {
         trackingId: face.trackingId ?? null,
         bounds: {
@@ -55,18 +47,15 @@ function mapMLKitFace(face: MLKitFace): DetectedFace {
             width: face.bounds.width,
             height: face.bounds.height,
         },
-        // Euler angles are non-optional on Face in v2.1.0.
         rollAngle: face.rollAngle,
         pitchAngle: face.pitchAngle,
         yawAngle: face.yawAngle,
         landmarks,
-        // Frame dimensions are provided directly on the Face object.
         frameWidth: face.frameWidth,
         frameHeight: face.frameHeight,
     };
 }
 
-// ─── Hook Interface ──────────────────────────────────────────────────────────
 export interface UseFaceDetectionReturn {
     detectionState: FaceDetectionState;
     cameraProps: {
@@ -85,7 +74,6 @@ export interface UseFaceDetectionReturn {
     requestPermission: () => Promise<boolean>;
 }
 
-// ─── Hook ────────────────────────────────────────────────────────────────────
 export function useFaceDetection(
     onStateChange: (state: FaceDetectionState) => void,
 ): UseFaceDetectionReturn {
@@ -144,14 +132,11 @@ export function useFaceDetection(
         };
     }, [hasPermission, device, pushState]);
 
-    // ─── Face callback ───────────────────────────────────────────────────────
     const handleFacesDetected = useCallback(
         (mlkitFaces: MLKitFace[]) => {
             if (!isMountedRef.current) return;
-
             let detectedFaces: DetectedFace[] = [];
             let error: FaceDetectionError | null = null;
-
             try {
                 detectedFaces = mlkitFaces.map(mapMLKitFace);
             } catch (e) {
@@ -161,7 +146,6 @@ export function useFaceDetection(
                     message: e instanceof Error ? e.message : 'Unknown frame processing error',
                 };
             }
-
             pushState({
                 status: facesToStatus(detectedFaces),
                 faces: detectedFaces,
@@ -172,7 +156,6 @@ export function useFaceDetection(
         [pushState],
     );
 
-    // ─── Error callback ──────────────────────────────────────────────────────
     const handleDetectorError = useCallback(
         (error: unknown) => {
             console.warn('[FaceDetection] ML Kit error:', error);
@@ -189,19 +172,24 @@ export function useFaceDetection(
         [pushState],
     );
 
+    // ── Memoize cameraProps so Camera never sees a new object reference ───────
+    // A new object on every render triggers VisionCamera to reconfigure the
+    // session, which closes the camera mid-capture ("Camera is closed").
+    const cameraProps = useMemo(() => ({
+        onFacesDetected: handleFacesDetected,
+        onError: handleDetectorError,
+        performanceMode: DETECTOR_OPTIONS.performanceMode,
+        trackingEnabled: DETECTOR_OPTIONS.trackingEnabled,
+        runLandmarks: DETECTOR_OPTIONS.runLandmarks,
+        runContours: DETECTOR_OPTIONS.runContours,
+        runClassifications: DETECTOR_OPTIONS.runClassifications,
+        minFaceSize: DETECTOR_OPTIONS.minFaceSize,
+        cameraFacing: DETECTOR_OPTIONS.cameraFacing,
+    }), [handleFacesDetected, handleDetectorError]);
+
     return {
         detectionState: INITIAL_FACE_DETECTION_STATE,
-        cameraProps: {
-            onFacesDetected: handleFacesDetected,
-            onError: handleDetectorError,
-            performanceMode: DETECTOR_OPTIONS.performanceMode,
-            trackingEnabled: DETECTOR_OPTIONS.trackingEnabled,
-            runLandmarks: DETECTOR_OPTIONS.runLandmarks,
-            runContours: DETECTOR_OPTIONS.runContours,
-            runClassifications: DETECTOR_OPTIONS.runClassifications,
-            minFaceSize: DETECTOR_OPTIONS.minFaceSize,
-            cameraFacing: DETECTOR_OPTIONS.cameraFacing,
-        },
+        cameraProps,
         device,
         hasPermission,
         requestPermission,
